@@ -1,1 +1,1 @@
-# browsers-image
+# chrome-openjdk
