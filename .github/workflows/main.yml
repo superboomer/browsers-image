@@ -1,4 +1,4 @@
-name: Build Docker Image
+name: Build Docker Images
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - "app/**"
       - ".dockerignore"
       - "docker-init.sh"
-      - "Dockerfile"
+      - "Dockerfile-firefox"
       - "!**.md"
   pull_request:
     paths:
@@ -17,12 +17,12 @@ on:
       - "app/**"
       - ".dockerignore"
       - "docker-init.sh"
-      - "Dockerfile"
+      - "Dockerfile-firefox"
       - "!**.md"
 
 jobs:
   build-images:
-    name: Build Docker images
+    name: Build Docker images with Firefox-ESR and GeckoDriver
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +45,7 @@ jobs:
       - name: Build and Push Docker image (multiarch)
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: Dockerfile-firefox
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ github.repository }}:firefox-latest
