@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1.4
+
+ARG BASE_IMAGE=alpine:latest
+FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS build
+
+ARG TARGETPLATFORM
+ENV LANG=C.UTF-8
+
+RUN apk add --no-cache curl tar binutils
+
+WORKDIR /opt
+
+# Download and prepare JDK and geckodriver
+RUN set -eux; \
+    case "${TARGETPLATFORM}" in \
+    "linux/amd64") JDK_ARCH="x64"; DRIVER_ARCH="linux64" ;; \
+    "linux/arm64") JDK_ARCH="aarch64"; DRIVER_ARCH="linux-aarch64" ;; \
+    *) echo "Unsupported architecture: ${TARGETPLATFORM}" && exit 1 ;; \
+    esac && \
+    curl -L "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.2%2B7/OpenJDK23U-jdk_${JDK_ARCH}_alpine-linux_hotspot_23.0.2_7.tar.gz" | tar -xz && \
+    mv jdk-* jdk23 && \
+    curl -sSL "https://github.com/mozilla/geckodriver/releases/download/v0.34.0/geckodriver-v0.34.0-${DRIVER_ARCH}.tar.gz" | tar -xz -C /usr/local/bin && \
+    strip /usr/local/bin/geckodriver
+
+# Slim down JDK in a second stage (delete unnecessary files)
+FROM alpine:latest AS jdk-slim
+COPY --from=build /opt/jdk23 /opt/jdk23
+
+# Remove unnecessary components from JDK
+RUN rm -rf /opt/jdk23/demo \
+    /opt/jdk23/sample \
+    /opt/jdk23/lib/src.zip \
+    /opt/jdk23/lib/security/blacklisted.certs \
+    /opt/jdk23/legal \
+    /opt/jdk23/man \
+    /opt/jdk23/include \
+    /opt/jdk23/jmods
+
+# Final runtime image
+FROM alpine:latest
+
+# Install only essential runtime dependencies
+RUN apk add --no-cache \
+    dbus \
+    xvfb \
+    ttf-freefont \
+    fontconfig \
+    ca-certificates \
+    bash \
+    firefox-esr \
+    udev
+
+# Copy only the stripped and slimmed-down assets
+COPY --from=jdk-slim /opt/jdk23 /opt/jdk23
+COPY --from=build /usr/local/bin/geckodriver /usr/local/bin/geckodriver
+
+ENV JAVA_HOME=/opt/jdk23
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+CMD ["java", "-version"]
