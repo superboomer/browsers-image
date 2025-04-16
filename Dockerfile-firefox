@@ -57,4 +57,4 @@ COPY --from=build /usr/local/bin/geckodriver /usr/local/bin/geckodriver
 ENV JAVA_HOME=/opt/jdk23
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-CMD ["java", "-version"]
+CMD ["sh", "-c", "java -version && firefox-esr --version && geckodriver --version"]
